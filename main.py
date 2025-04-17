@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Bot token & admins
 MAINTENANCE_MODE = False
-TOKEN = "Your_Bot_Token"  # Replace with your actual bot token
+TOKEN = "7501669029:AAEYIc7z5TPn49i3JiMA654WWU2ICIpgoSU"  # Replace with your actual bot token
 ADMIN_IDS = [8112061255, 5657619953]
 bot = telebot.TeleBot(TOKEN)
 
