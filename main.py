@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 
 # Bot token & admins
 MAINTENANCE_MODE = False  # Global maintenance mode flag
-TOKEN = "7501669029:AAEYIc7z5TPn49i3JiMA654WWU2ICIpgoSU"  # Replace with your bot token
+TOKEN = "yOUR_BOT_TOKEN"  # Replace with your bot token
 ADMIN_IDS = [8112061255, 5657619953]    # Admin Telegram IDs
 bot = telebot.TeleBot(TOKEN)
 
