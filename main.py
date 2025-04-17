@@ -4,19 +4,28 @@ import logging
 import telebot
 import os
 import requests
+from flask import Flask, request
 
-# Logging setup
+# Logging
 logging.basicConfig(level=logging.INFO)
 
-# Bot token & admins
-MAINTENANCE_MODE = False
-TOKEN = "7501669029:AAEYIc7z5TPn49i3JiMA654WWU2ICIpgoSU"  # Replace with your actual bot token
-ADMIN_IDS = [8112061255, 5657619953]
-bot = telebot.TeleBot(TOKEN)
+# Bot token & Webhook config from environment variables
+TOKEN = os.environ.get("BOT_TOKEN")
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL")  # e.g., https://your-render-url.onrender.com
 
-# Approved users storage
+# Maintenance mode and admin list
+MAINTENANCE_MODE = False
+ADMIN_IDS = [8112061255, 5657619953]
+
+bot = telebot.TeleBot(TOKEN, threaded=False)
 APPROVED_FILE = "approved_users.txt"
 
+# Flask app
+app = Flask(__name__)
+WEBHOOK_PATH = f"/{TOKEN}/"
+FULL_WEBHOOK_URL = f"{WEBHOOK_URL}{WEBHOOK_PATH}"
+
+# Approved users loading/saving
 def load_approved_users():
     if os.path.exists(APPROVED_FILE):
         with open(APPROVED_FILE, "r") as f:
@@ -29,7 +38,7 @@ def save_approved_users():
 
 approved_users = load_approved_users()
 
-# Load item data
+# Item loading
 def load_items():
     items = {}
     try:
@@ -44,7 +53,7 @@ def load_items():
 
 ITEMS = load_items()
 
-# Loading animation
+# Progress animation
 def loading_animation(chat_id):
     progress = [
         "[□□□□□□□□□□] 0%", "[■□□□□□□□□□] 10%", "[■■□□□□□□□□] 20%", "[■■■□□□□□□□] 30%",
@@ -56,14 +65,13 @@ def loading_animation(chat_id):
         time.sleep(0.1)
         bot.edit_message_text(step, chat_id, msg.message_id)
 
-# Google Drive ZIP links
+# File download & send
 ZIP_LINKS = {
     "skin": "https://drive.google.com/uc?export=download&id=1b8Sl8yI_Hf6CUutNsLNC3aIGwLBltG6z",
     "multiskin": "https://drive.google.com/uc?export=download&id=1b8Sl8yI_Hf6CUutNsLNC3aIGwLBltG6z",
     "xsuits": "https://drive.google.com/uc?export=download&id=1P5BVKNYJokG6M8JUMQjXgWJWKTW9AepZ"
 }
 
-# Download & Send ZIP
 def download_and_send_zip(command, chat_id):
     url = ZIP_LINKS.get(command)
     if not url:
@@ -80,7 +88,7 @@ def download_and_send_zip(command, chat_id):
     except Exception as e:
         bot.send_message(chat_id, f"❌ Error sending file: {e}")
 
-# Handle command
+# Main command handler
 def handle_command(message, cmd):
     uid = message.chat.id
     global MAINTENANCE_MODE
@@ -114,13 +122,33 @@ def handle_command(message, cmd):
     download_and_send_zip(cmd, uid)
     bot.send_message(uid, "✅ Your mixed skin has been created! Enjoy!\n\n¹ HYPERSKINS BOT")
 
-# Handlers and admin functions should follow here
-# Example handler (you can add more)
+# Command handlers
 @bot.message_handler(commands=['skin', 'multiskin', 'xsuits'])
 def command_handler(message):
-    cmd = message.text.split()[0][1:]  # Extract command name
+    cmd = message.text.split()[0][1:]
     handle_command(message, cmd)
 
-# Start bot
+@bot.message_handler(commands=['start'])
+def start_handler(message):
+    bot.send_message(message.chat.id, "👋 Welcome! Use /skin <id1> <id2> to begin!")
+
+# Flask route for webhook
+@app.route(WEBHOOK_PATH, methods=["POST"])
+def webhook():
+    if request.headers.get('content-type') == 'application/json':
+        update = telebot.types.Update.de_json(request.data.decode("utf-8"))
+        bot.process_new_updates([update])
+        return '', 200
+    return 'Invalid request', 403
+
+# Set webhook before first request
+@app.before_first_request
+def setup_webhook():
+    bot.remove_webhook()
+    time.sleep(1)
+    bot.set_webhook(url=FULL_WEBHOOK_URL)
+
+# Start Flask app with correct port
 if __name__ == "__main__":
-    bot.infinity_polling(timeout=20, long_polling_timeout=5)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
